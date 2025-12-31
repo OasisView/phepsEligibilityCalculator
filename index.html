@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHEPS Eligibility Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .upload-box {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-box:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .upload-box.has-file {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .file-name {
+            color: #10b981;
+            font-weight: 600;
+            font-size: 12px;
+            word-break: break-word;
+            margin-top: 8px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            margin-top: 20px;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            color: #c33;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .result-header {
+            text-align: center;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .result-header.eligible {
+            background: #f0fdf4;
+            border: 3px solid #10b981;
+        }
+
+        .result-header.not-eligible {
+            background: #fef2f2;
+            border: 3px solid #ef4444;
+        }
+
+        .result-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .result-title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .result-header.eligible .result-title {
+            color: #10b981;
+        }
+
+        .result-header.not-eligible .result-title {
+            color: #ef4444;
+        }
+
+        .breakdown {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .breakdown h3 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .breakdown-row:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-row.total {
+            border-top: 3px solid #333;
+            padding-top: 20px;
+            margin-top: 10px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .breakdown-label {
+            color: #666;
+            max-width: 60%;
+            word-break: break-word;
+        }
+
+        .breakdown-value {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .upload-section {
+            display: block;
+        }
+
+        .upload-section.hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PHEPS Eligibility Calculator</h1>
+            <p class="subtitle">Upload 4 paystubs to check eligibility (Threshold: $2,600)</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-grid">
+                <label class="upload-box" id="box1">
+                    <input type="file" accept=".pdf" onchange="handleFileUpload(0, this)">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Paystub 1</div>
+                    <div class="file-name" style="display: none;"></div>
+                </label>
+
+                <label class="upload-box" id="box2">
+                    <input type="file" accept=".pdf" onchange="handleFileUpload(1, this)">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Paystub 2</div>
+                    <div class="file-name" style="display: none;"></div>
+                </label>
+
+                <label class="upload-box" id="box3">
+                    <input type="file" accept=".pdf" onchange="handleFileUpload(2, this)">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Paystub 3</div>
+                    <div class="file-name" style="display: none;"></div>
+                </label>
+
+                <label class="upload-box" id="box4">
+                    <input type="file" accept=".pdf" onchange="handleFileUpload(3, this)">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Paystub 4</div>
+                    <div class="file-name" style="display: none;"></div>
+                </label>
+            </div>
+
+            <button class="btn btn-primary" id="calculateBtn" onclick="calculateEligibility()" disabled>
+                Calculate Eligibility
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing paystubs...</p>
+        </div>
+
+        <div class="results" id="results">
+            <div class="result-header" id="resultHeader">
+                <div class="result-icon" id="resultIcon"></div>
+                <div class="result-title" id="resultTitle"></div>
+                <div class="result-subtitle" id="resultSubtitle"></div>
+            </div>
+
+            <div class="breakdown">
+                <h3>Breakdown</h3>
+                <div id="breakdownContent"></div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="resetCalculator()">
+                Check Another Application
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Configure PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let uploadedFiles = [null, null, null, null];
+
+        function handleFileUpload(index, input) {
+            const file = input.files[0];
+
+            if (file && file.type === 'application/pdf') {
+                uploadedFiles[index] = file;
+
+                // Update UI
+                const box = document.getElementById(`box${index + 1}`);
+                box.classList.add('has-file');
+                box.querySelector('.upload-icon').textContent = '✅';
+                const fileName = box.querySelector('.file-name');
+                fileName.textContent = file.name;
+                fileName.style.display = 'block';
+
+                // Hide error
+                document.getElementById('error').classList.remove('show');
+
+                // Enable button if all files uploaded
+                checkAllFilesUploaded();
+            } else {
+                showError('Please upload PDF files only');
+            }
+        }
+
+        function checkAllFilesUploaded() {
+            const allUploaded = uploadedFiles.every(file => file !== null);
+            document.getElementById('calculateBtn').disabled = !allUploaded;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = '⚠️ ' + message;
+            errorDiv.classList.add('show');
+        }
+
+        async function extractGrossPayFromPDF(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdf.getPage(1);
+                const textContent = await page.getTextContent();
+
+                // Extract all text
+                const text = textContent.items.map(item => item.str).join(' ');
+                console.log('Extracted text from', file.name, ':', text);
+
+                // Pattern matching for gross pay
+                const patterns = [
+                    /T\s*o\s*t\s*a\s*l\s*s?\s*:\s*(\d+\.\d+)/i,
+                    /Total[:\s]+\$?(\d+\.\d+)/i,
+                    /Gross Pay[:\s]+\$?(\d+\.\d+)/i,
+                    /Current Earnings[:\s]+\$?(\d+\.\d+)/i,
+
+                ];
+
+                for (const pattern of patterns) {
+                    const match = text.match(pattern);
+                    if (match && match[1]) {
+                        const amount = parseFloat(match[1]);
+                        console.log('Found amount:', amount);
+                        return amount;
+                    }
+                }
+
+                throw new Error('Could not find gross pay amount');
+
+            } catch (error) {
+                console.error('Error extracting from PDF:', error);
+                throw new Error(`Failed to extract from ${file.name}`);
+            }
+        }
+
+        async function calculateEligibility() {
+            // Show loading
+            document.getElementById('uploadSection').classList.add('hidden');
+            document.getElementById('loading').classList.add('show');
+
+            try {
+                // Extract amounts from all PDFs
+                const amounts = await Promise.all(
+                    uploadedFiles.map(file => extractGrossPayFromPDF(file))
+                );
+
+                // Calculate total
+                const total = amounts.reduce((sum, amount) => sum + amount, 0);
+                const threshold = 2600;
+                const isEligible = total >= threshold;
+
+                // Display results
+                displayResults(amounts, total, isEligible, threshold);
+
+            } catch (error) {
+                console.error('Calculation error:', error);
+                showError(error.message);
+                document.getElementById('uploadSection').classList.remove('hidden');
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        function displayResults(amounts, total, isEligible, threshold) {
+            // Hide loading
+            document.getElementById('loading').classList.remove('show');
+
+            // Show results
+            const results = document.getElementById('results');
+            results.classList.add('show');
+
+            // Set header
+            const header = document.getElementById('resultHeader');
+            const icon = document.getElementById('resultIcon');
+            const title = document.getElementById('resultTitle');
+            const subtitle = document.getElementById('resultSubtitle');
+
+            if (isEligible) {
+                header.className = 'result-header eligible';
+                icon.textContent = '✅';
+                title.textContent = 'Eligible';
+                subtitle.textContent = 'Total income meets the threshold';
+            } else {
+                header.className = 'result-header not-eligible';
+                icon.textContent = '❌';
+                title.textContent = 'Not Eligible';
+                subtitle.textContent = 'Total income below $2,600 threshold';
+            }
+
+            // Build breakdown
+            let breakdownHTML = '';
+            amounts.forEach((amount, index) => {
+                breakdownHTML += `
+                    <div class="breakdown-row">
+                        <div class="breakdown-label">${uploadedFiles[index].name}</div>
+                        <div class="breakdown-value">$${amount.toFixed(2)}</div>
+                    </div>
+                `;
+            });
+
+            breakdownHTML += `
+                <div class="breakdown-row total">
+                    <div class="breakdown-label">Total Income</div>
+                    <div class="breakdown-value" style="color: #667eea;">$${total.toFixed(2)}</div>
+                </div>
+                <div class="breakdown-row">
+                    <div class="breakdown-label">Threshold Required</div>
+                    <div class="breakdown-value">$${threshold.toFixed(2)}</div>
+                </div>
+                <div class="breakdown-row">
+                    <div class="breakdown-label" style="color: ${isEligible ? '#10b981' : '#ef4444'}; font-weight: 600;">
+                        ${isEligible ? 'Amount Over Threshold' : 'Amount Under Threshold'}
+                    </div>
+                    <div class="breakdown-value" style="color: ${isEligible ? '#10b981' : '#ef4444'};">
+                        $${Math.abs(total - threshold).toFixed(2)}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('breakdownContent').innerHTML = breakdownHTML;
+        }
+
+        function resetCalculator() {
+            uploadedFiles = [null, null, null, null];
+
+            // Reset upload boxes
+            for (let i = 1; i <= 4; i++) {
+                const box = document.getElementById(`box${i}`);
+                box.classList.remove('has-file');
+                box.querySelector('.upload-icon').textContent = '📄';
+                box.querySelector('.file-name').style.display = 'none';
+                box.querySelector('input').value = '';
+            }
+
+            // Reset UI
+            document.getElementById('calculateBtn').disabled = true;
+            document.getElementById('uploadSection').classList.remove('hidden');
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('error').classList.remove('show');
+        }
+    </script>
+</body>
+
+</html>
